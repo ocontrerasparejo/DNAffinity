@@ -17,7 +17,7 @@ MODELS = ['linear', 'ridge', 'svr', 'rf', 'dfn', 'cnn1d', 'cnnattention', 'trans
 NM = dict(linear='Linear', ridge='Ridge', svr='SVR', rf='RF', dfn='DFN', cnn1d='CNN1D', cnnattention='CNNAttention', transformer='Transformer')
 WIN = ('cnn1d', 'cnnattention', 'transformer')      # per-position (n, 7, channels) input; the others get a flat vector
 SK = ('rf', 'ridge', 'linear', 'svr')
-_base = dict(tf='log', mc=10, mode='perstrand', props='avg+fce', std=1)
+_base = dict(tf='log', mc=10, mode='perstrand', props='avg+fce+electrostatic+ion', std=1)
 FEATURE_SETS = {   # letter -> (report name, config); same configs as outputs/selex_new_shape/final*/config.json
     'a': ('tetramer', dict(_base, ks='4', onehot=1, shape=1)),    # tetramer MD shape + one-hot
     'b': ('hexamer', dict(_base, ks='6', onehot=1, shape=1)),     # hexamer MD shape + one-hot
@@ -99,7 +99,7 @@ def summarize(runs):
 @contextlib.contextmanager
 def permuted_md_table(seed):
     """Control of the report: reassign the 256 real tetramer MD rows (avg and fce together) to random tetramers (same values, same dimension)."""
-    saved = {q: lib.TAB[(4, q)] for q in ('avg', 'fce')}; ks = sorted(saved['avg']); p = np.random.RandomState(seed).permutation(len(ks))
+    saved = {q: lib.TAB[(4, q)] for q in lib.SHAPE_PROPS}; ks = sorted(saved['avg']); p = np.random.RandomState(seed).permutation(len(ks))
     for q in saved: lib.TAB[(4, q)] = {k: saved[q][ks[j]] for k, j in zip(ks, p)}
     try: yield
     finally:

@@ -38,6 +38,22 @@ def test_dataset_groups_pair_strands():
     assert (d.groups[:n] == d.groups[n:]).all()
 
 
+def test_selex_tables_concatenate_electrostatics_and_ions():
+    """SELEX uses only data/selex tetramer+hexamer tables, concatenated per tetramer window."""
+    df = pd.DataFrame({'ID_REF': ['AAAAACGTAA'], 'VALUE': [1.0]})
+    d = Dataset('x', df, chosen_features=['avg', 'diagonal_fce', 'electrostatic', 'ion'],
+                selected_tetramers=range(7), property_dir=ROOT / 'data' / 'selex', kmers=(4, 6))
+    # per window: avg 6+6, fce diag 6+6, electrostatic 5+5, ion 6+10
+    assert d.features.shape == (2, 7 * 50)
+    assert d.windowed_features.shape == (2, 7, 50)
+    from dnaffinity.dataset import _read_kmer_table
+    tetra = _read_kmer_table(ROOT / 'data' / 'selex' / 'tetramer' / 'avg_tetramer.dat')
+    np.testing.assert_allclose(d.windowed_features[0, 0, :6], tetra['AAAA'])
+    assert np.all(d.windowed_features[0, 0, 6:12] == 0)  # no hexamer aligned to the first window
+    hexa = _read_kmer_table(ROOT / 'data' / 'selex' / 'hexamer' / 'avg_hexamer.dat')
+    np.testing.assert_allclose(d.windowed_features[0, 1, 6:12], hexa['AAAAAC'])
+
+
 def test_electrostatic_is_float():
     d = Dataset('x', _toy_df(10), chosen_features=['avg', 'electrostatic'], selected_tetramers=range(7))
     assert d.features.dtype.kind == 'f'

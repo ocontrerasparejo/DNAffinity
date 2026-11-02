@@ -14,14 +14,33 @@ import pandas as pd
 
 np.random.seed(20)
 
-# Repo-level data folder with the tetramer property tables
+# Repo-level data folder with the legacy tetramer property tables (uPBM / gcPBM)
 DATA_DIR = Path(__file__).resolve().parents[1] / 'data' / 'input'
+# SELEX shape, electrostatics and ion concentration (tetramer and hexamer)
+SELEX_DIR = DATA_DIR.parent / 'selex'
+
+_HELICAL = ('shift', 'slide', 'rise', 'tilt', 'roll', 'twist')
+
+
+def _read_kmer_table(path):
+    """Map DNA k-mer -> float vector. Header rows (SEQUENCE, SHIFT, tet, hex, ...) are skipped."""
+    table = {}
+    with open(path) as handle:
+        for line in handle:
+            parts = line.split()
+            if not parts or not set(parts[0]) <= set('ACGT'):
+                continue
+            table[parts[0]] = np.asarray(parts[1:], dtype=np.float64)
+    if not table:
+        raise ValueError(f'No k-mer rows in {path}')
+    return table
 
 
 class Dataset:
     def __init__(self, protein, fitxer, model_target='tetramers', randomize_fce=False,
                  chosen_features=('full_fce', 'avg'), score='Median_intensity',
-                 selected_tetramers=(0, 1, 2, 3, 4, 5, 6, 7, 8), weighted=False):
+                 selected_tetramers=(0, 1, 2, 3, 4, 5, 6, 7, 8), weighted=False,
+                 property_dir=None, kmers=(4,)):
 
         self.protein = protein
         self.pbm35 = fitxer
@@ -49,6 +68,10 @@ class Dataset:
         self.selected_tetramers = list(selected_tetramers)
         self.randomize = randomize_fce
         self.model_target = model_target
+        self.property_dir = Path(property_dir) if property_dir is not None else DATA_DIR
+        self.kmers = tuple(kmers)
+        # feature name -> channel names, concatenated k-mer by k-mer on each tetramer window
+        self._channels = {}
 
         # Get list of all kmers for indices purposes
         self.sequences = list(self.pbm35["ID_REF"])
@@ -60,27 +83,110 @@ class Dataset:
     def __str__(self):
         return f"{self.model_target}-based dataset for protein {self.protein} using features {self.feats}"
 
+    def _table_path(self, kind, k):
+        """Property file for one feature kind and k-mer length.
+
+        `data/input` keeps the legacy tetramer names. `data/selex` stores tetramer
+        and hexamer tables (avg, fce, electrostatics, ion concentration) and is the
+        only source used for SELEX.
+        """
+        if (self.property_dir / 'tetramer').is_dir():
+            folder = {4: 'tetramer', 6: 'hexamer'}[k]
+            names = {'avg': f'avg_{folder}.dat', 'fce': f'fce_{folder}.dat',
+                     'electrostatic': f'electrostatic_{folder}.dat',
+                     'ion': f'ion_vec_{folder}.dat'}
+            if kind not in names:
+                raise FileNotFoundError(f'{kind} is not in {self.property_dir}')
+            return self.property_dir / folder / names[kind]
+        if k != 4:
+            raise ValueError(f'{self.property_dir} has no {k}-mer tables')
+        legacy = {'avg': 'avg_tetramer.dat', 'fce': 'fce_tetramer.dat',
+                  'electrostatic': 'electrostatic.txt', 'mgw': 'mgw_rohs.txt'}
+        if kind not in legacy:
+            raise FileNotFoundError(
+                f'{kind} is only available under data/selex (tetramer and hexamer tables)')
+        return self.property_dir / legacy[kind]
+
+    def _channel_names(self, kind, k, width):
+        if kind in ('avg', 'diagonal_fce'):
+            names = list(_HELICAL)
+        elif kind == 'ion' and k == 4:
+            names = ['m1', 'm2', 'm3', 'j1', 'j2', 'j3']
+        elif kind == 'ion' and k == 6:
+            names = [f'm{i}' for i in range(5)] + [f'j{i}' for i in range(5)]
+        else:
+            names = [f'e{i}' for i in range(width)]
+        if len(names) != width:
+            names = [f'c{i}' for i in range(width)]
+        return names if k == 4 else [f'{n}_hex' for n in names]
+
+    def _aligned_windows(self, table, k):
+        """(n_samples, n_tetramer_windows * width), aligned to `selected_tetramers`.
+
+        Tetramer k=4 is the window itself. Hexamer k=6 is the hexamer whose central
+        tetramer is that window (start i-1); the two end windows are zero.
+        """
+        width = len(next(iter(table.values())))
+        rows = []
+        for seq in self.sequences:
+            parts = []
+            for i in self.selected_tetramers:
+                if k == 4:
+                    vec = table[seq[i:i + 4]]
+                elif k == 6:
+                    j = i - 1
+                    vec = table[seq[j:j + 6]] if 0 <= j <= len(seq) - 6 else np.zeros(width)
+                else:
+                    raise ValueError(f'Unsupported k-mer length {k}')
+                parts.append(np.asarray(vec, dtype=np.float64))
+            rows.append(np.concatenate(parts))
+        return np.asarray(rows)
+
+    def _load_tables(self, kind, transform=None):
+        tables = {}
+        for k in self.kmers:
+            table = _read_kmer_table(self._table_path(kind, k))
+            if transform is not None:
+                table = {key: transform(val) for key, val in table.items()}
+            tables[k] = table
+        return tables
+
+    def _stack(self, tables, kind):
+        """Concatenate every requested k-mer length onto the same tetramer-window axis."""
+        blocks, names = [], []
+        seq_len = len(self.selected_tetramers)
+        for k in self.kmers:
+            table = tables[k]
+            width = len(next(iter(table.values())))
+            flat = self._aligned_windows(table, k)
+            blocks.append(flat.reshape(flat.shape[0], seq_len, width))
+            names.extend(self._channel_names(kind, k, width))
+        self._channels[kind] = names
+        # channels of every k-mer sit side by side inside each tetramer window
+        return np.concatenate(blocks, axis=-1).reshape(blocks[0].shape[0], -1)
+
+    @property
+    def positional_channels(self):
+        """(feature, channel names) in the same order as `features`."""
+        return [(feat, self._channels[feat]) for feat in self.feats if feat in self._channels]
+
     def featurize(self):
         if 'avg' in self.feats:
-            tetra_avg = {line.split()[0]: np.array([float(x) for x in line.split()[1:]])
-                         for line in open(DATA_DIR / 'avg_tetramer.dat') if 'SHIFT' not in line}
-            self.tetra_avg = np.array([np.concatenate([tetra_avg[otmer[i:i+4]] for i in self.selected_tetramers])
-                                       for otmer in self.sequences])
+            self.tetra_avg = self._stack(self._load_tables('avg'), 'avg')
         if 'full_fce' in self.feats or 'diagonal_fce' in self.feats:
-            tetra_fce = {line.split()[0]: np.array([float(x) for x in line.split()[1:]])
-                         for line in open(DATA_DIR / 'fce_tetramer.dat') if 'SHIFT' not in line}
+            fce = self._load_tables('fce')
             if self.randomize:
                 # scramble the matchings as 'negative control', i.e. remove all physical information
-                keys = list(tetra_fce.keys())
-                permut_keys = np.random.permutation(keys)
-                tetra_fce = {key: tetra_fce[val] for key, val in zip(keys, permut_keys)}
-            self.tetra_fce = np.array([np.concatenate([tetra_fce[otmer[i:i+4]] for i in self.selected_tetramers])
-                                       for otmer in self.sequences])
-        if 'diagonal_fce' in self.feats:
-            tetra_fce_reduced = {tt: tetra_fce[tt][list(range(0, 36, 7))] for tt in tetra_fce.keys()}
-            self.tetra_fce_reduced = np.array([np.concatenate([tetra_fce_reduced[otmer[i:i+4]]
-                                                               for i in self.selected_tetramers])
-                                               for otmer in self.sequences])
+                for k, table in fce.items():
+                    keys = list(table)
+                    perm = np.random.permutation(keys)
+                    fce[k] = {key: table[val] for key, val in zip(keys, perm)}
+            if 'full_fce' in self.feats:
+                self.tetra_fce = self._stack(fce, 'full_fce')
+            if 'diagonal_fce' in self.feats:
+                diag = {k: {key: val[list(range(0, 36, 7))] for key, val in table.items()}
+                        for k, table in fce.items()}
+                self.tetra_fce_reduced = self._stack(diag, 'diagonal_fce')
         if 'onehot_window' in self.feats:
             # per-window one-hot of the 4 bases of each tetramer window (16 per window)
             onehot = np.array([self.onehot_encoding(otmer) for otmer in self.sequences])
@@ -96,16 +202,11 @@ class Dataset:
         if 'presence_tetramer' in self.feats:
             self.presence_tetra = np.array([self.presence(otmer, 4) for otmer in self.sequences]).astype(np.int8)
         if 'mgw' in self.feats:
-            self.mgw = {line.split()[0]: [float(x) for x in line.split()[1:]]
-                        for line in open(DATA_DIR / 'mgw_rohs.txt') if 'SHIFT' not in line}
-            self.mgw = np.array([np.concatenate([self.mgw[otmer[i:i+4]] for i in self.selected_tetramers])
-                                 for otmer in self.sequences])
+            self.mgw = self._stack(self._load_tables('mgw'), 'mgw')
         if 'electrostatic' in self.feats:
-            self.electrostatic = {line.split()[0]: [float(x) for x in line.split()[1:]]
-                                  for line in open(DATA_DIR / 'electrostatic.txt') if 'SHIFT' not in line}
-            self.electrostatic = np.array([np.concatenate([self.electrostatic[otmer[i:i+4]]
-                                                           for i in self.selected_tetramers])
-                                           for otmer in self.sequences])
+            self.electrostatic = self._stack(self._load_tables('electrostatic'), 'electrostatic')
+        if 'ion' in self.feats:
+            self.ion = self._stack(self._load_tables('ion'), 'ion')
 
     @staticmethod
     def onehot_encoding(sequence):
@@ -149,7 +250,7 @@ class Dataset:
         avail = {'avg': 'tetra_avg', 'full_fce': 'tetra_fce', 'diagonal_fce': 'tetra_fce_reduced',
                  'onehot_1mer': 'onehot_1mer', 'integer': 'integer',
                  'presence_tetramer': 'presence_tetra', 'mgw': 'mgw', 'electrostatic': 'electrostatic',
-                 'onehot_window': 'onehot_window'}
+                 'ion': 'ion', 'onehot_window': 'onehot_window'}
         return np.hstack([self.__getattribute__(avail[feat]) for feat in self.feats])
 
     _POSITIONAL_FEATS = {
@@ -158,6 +259,7 @@ class Dataset:
         'diagonal_fce': 'tetra_fce_reduced',
         'mgw': 'mgw',
         'electrostatic': 'electrostatic',
+        'ion': 'ion',
         'onehot_window': 'onehot_window',
     }
     _NON_POSITIONAL_FEATS = frozenset(

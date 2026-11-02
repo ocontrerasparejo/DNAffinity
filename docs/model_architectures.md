@@ -59,13 +59,16 @@ concatenated per probe. With the standard uPBM choice
 | `diagonal_fce` | 7 × 6 = 42 | per window: diagonal of the stiffness (force-constant) matrix |
 | total | 340 | |
 
-gcPBM adds `electrostatic`; `full_fce` (full 6×6 stiffness matrix, 36 values per window),
+gcPBM adds `electrostatic` from `data/input`. SELEX reads `avg`, `diagonal_fce`,
+`electrostatic` and `ion` only from `data/selex/tetramer` and `data/selex/hexamer`,
+concatenating the hexamer channels onto each tetramer window (the hexamer whose
+central tetramer is that window; the two end windows are zero). `full_fce` (full 6×6 stiffness matrix, 36 values per window),
 `mgw` (minor groove width), `onehot_1mer` and `integer` encodings are also available.
 
 **Windows** — `Dataset.windowed_features`, shape `(n_samples, seq_len, feat_dim)`. One row
 per tetramer window, keeping the positional structure so convolutions/attention can act
 along the sequence. Only positional feature blocks are included (`avg`, `diagonal_fce`,
-`full_fce`, `mgw`, `electrostatic`); whole-probe blocks such as `presence_tetramer` are
+`full_fce`, `mgw`, `electrostatic`, `ion`); whole-probe blocks such as `presence_tetramer` are
 skipped with a warning. With `avg` + `diagonal_fce` on 10-mers the tensor is
 `(n, 7, 12)`.
 

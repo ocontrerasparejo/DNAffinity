@@ -13,16 +13,19 @@ def _tab(p):
     d = {}
     for l in open(p):
         t = l.split()
-        if t[0] in ('SEQUENCE',) or t[0].startswith('SHIFT'): continue
+        if not t or not set(t[0]) <= set('ACGT'): continue
         d[t[0]] = np.array(t[1:], float)
     return d
+SHAPE_PROPS = ('avg', 'fce', 'electrostatic', 'ion')
 TAB = {}
 for k, n in [(4, 'tetramer'), (6, 'hexamer')]:
     TAB[(k, 'avg')] = _tab(ROOT / f'data/selex/{n}/avg_{n}.dat')
     TAB[(k, 'fce')] = {s: v.reshape(6, 6)[IU] for s, v in _tab(ROOT / f'data/selex/{n}/fce_{n}.dat').items()}  # 21 unique of symmetric 6x6
+    TAB[(k, 'electrostatic')] = _tab(ROOT / f'data/selex/{n}/electrostatic_{n}.dat')
+    TAB[(k, 'ion')] = _tab(ROOT / f'data/selex/{n}/ion_vec_{n}.dat')
 if os.environ.get('PERM_TAB'):  # control: random lookup table = real MD rows reassigned to random tetramers (same values, same dim)
     _ks = sorted(TAB[(4, 'avg')]); _p = np.random.RandomState(int(os.environ['PERM_TAB'])).permutation(len(_ks))
-    for _q in ('avg', 'fce'): _o = TAB[(4, _q)]; TAB[(4, _q)] = {k: _o[_ks[j]] for k, j in zip(_ks, _p)}
+    for _q in SHAPE_PROPS: _o = TAB[(4, _q)]; TAB[(4, _q)] = {k: _o[_ks[j]] for k, j in zip(_ks, _p)}
 OH = {b: np.eye(4)[i] for i, b in enumerate('ACGT')}
 
 def windowed(seqs, ks=(4,), props=('avg', 'fce'), onehot=False, shape=True):

@@ -131,7 +131,8 @@ def load_pytorch_params(config_path, defaults=DEFAULT_DFN_PARAMS):
     return params
 
 
-def train_model(df_train, args, chosen_features, pytorch_params, weighted=False, label='the'):
+def train_model(df_train, args, chosen_features, pytorch_params, weighted=False, label='the',
+                property_dir=None, kmers=(4,)):
     """
     Build a Dataset from df_train (ID_REF/VALUE columns), train a Model
     according to the CLI args (group split on canonical sequences, train-only
@@ -147,7 +148,8 @@ def train_model(df_train, args, chosen_features, pytorch_params, weighted=False,
 
     start_time = time.time()
     dset_train = Dataset(args.protein, df_train, args.model_target, args.randomize_fce,
-                         chosen_features, args.score, selected_tetramers, weighted=weighted)
+                         chosen_features, args.score, selected_tetramers, weighted=weighted,
+                         property_dir=property_dir, kmers=kmers)
     model_kwargs = dict(weighted=weighted, pytorch_model_params=pytorch_params,
                         target_transform=getattr(args, 'target_transform', None),
                         rc_average=getattr(args, 'rc_average', False))

@@ -36,12 +36,15 @@ out_dir = OUTPUTS_DIR / 'selex' / args.protein / args.regressor
 out_dir.mkdir(parents=True, exist_ok=True)
 df_train.to_csv(out_dir / 'SELEX_training.txt', sep='\t', index=False)
 
-chosen_features = ['presence_tetramer', 'avg', 'diagonal_fce']
+# Shape, electrostatics and ion concentration from data/selex/{tetramer,hexamer} only.
+# Hexamer channels are concatenated onto each tetramer window (central-tetramer alignment).
+chosen_features = ['presence_tetramer', 'avg', 'diagonal_fce', 'electrostatic', 'ion']
 # SELEX historically uses a deeper DFN; other models use their standard defaults
 defaults = SELEX_DFN_PARAMS if args.regressor == 'DFN' else default_params(args.regressor)
 pytorch_params = load_pytorch_params(args.config, defaults)
 
-model = train_model(df_train, args, chosen_features, pytorch_params, label='the SELEX')
+model = train_model(df_train, args, chosen_features, pytorch_params, label='the SELEX',
+                    property_dir=ROOT / 'data' / 'selex', kmers=(4, 6))
 
 save_model(model, out_dir / 'model.sav', protocol=4)
 importances = save_plots(model, out_dir)
