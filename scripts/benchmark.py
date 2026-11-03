@@ -47,7 +47,7 @@ if a.dataset == 'upbm':
     df = pd.read_csv(f, sep='\t') if legacy else pp.load_upbm(f)
     feats, weighted = ['presence_tetramer', 'avg', 'diagonal_fce'], True
 elif a.dataset == 'selex':
-    df = pp.load_selex(ROOT / 'data/selex/Gata4/4.txt', selection='legacy' if legacy else 'count')
+    df = pp.load_selex(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', selection='legacy' if legacy else 'count')
     feats = ['presence_tetramer', 'avg', 'diagonal_fce']
 else:
     d = ROOT / 'data/gcpbm/cbf1'

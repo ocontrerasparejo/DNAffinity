@@ -14,3 +14,21 @@ outputs/
 *.pth
 *.pck
 .pytest_cache/
+.DS_Store
+._*
+
+# SELEX TF folders: keep only the cycle the pipeline uses
+# (the only {n}.txt, or the second-largest when several exist).
+data/selex/transcription_factors/**
+!data/selex/transcription_factors/*/
+!data/selex/transcription_factors/Gata4/4.txt
+!data/selex/transcription_factors/Zfp24/5.txt
+!data/selex/transcription_factors/arid3/6.txt
+!data/selex/transcription_factors/hoxd1/3.txt
+!data/selex/transcription_factors/nkx3/6.txt
+!data/selex/transcription_factors/pax3-like/5.txt
+!data/selex/transcription_factors/six1/5.txt
+!data/selex/transcription_factors/tbx15/5.txt
+!data/selex/transcription_factors/telf/5.txt
+!data/selex/transcription_factors/uncxb/5.txt
+!data/selex/transcription_factors/xbpc/5.txt

@@ -72,7 +72,7 @@ def gxi(net, x):
 
 def main(od, model):
     c = json.load(open(OUT / od / 'config.json')); d = load_labels(10, 'perstrand')
-    full = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values; tg = set(allg[split(allg)])
+    full = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values; tg = set(allg[split(allg)])
     T = np.where(d.group.isin(tg).values)[0]; seqs = list(d.seq.values[T]); y = np.log(d.aff.values[T])
     X = (windowed if model == 'cnn1d' else flat_feats)(seqs, tuple(int(k) for k in c['ks']), tuple(c['props'].split('+')), bool(c['onehot']), bool(c['shape']))
     RS, RG, RZ, OUTS, CONS = [], [], [], [], []

@@ -42,7 +42,7 @@ legacy/                # original research analyses, kept for reference
 data/
 ├── input/             # tetramer property tables (avg, FCE, MGW, electrostatics)
 ├── upbm/Gata4/        # uPBM test case
-├── selex/Gata4/       # HT-SELEX test case
+├── selex/transcription_factors/  # HT-SELEX tables, one folder per protein
 └── gcpbm/cbf1/        # gcPBM test case (plus yeast chromosome files)
 
 configs/               # example JSON configs for the DFN model
@@ -116,18 +116,18 @@ python scripts/run_upbm.py --protein Gata4 --regressor DFN --config configs/dfn_
 #### SELEX Regressor
 
 ```bash
-python scripts/run_selex.py --protein PROTEIN --cycle CYCLE [OPTIONS]
+python scripts/run_selex.py --protein PROTEIN [--cycle CYCLE] [OPTIONS]
 ```
 
 **Arguments:**
-- `--protein` (required): Protein name
-- `--cycle` (required): Cycle number
+- `--protein` (required): Protein name (a folder under `data/selex/transcription_factors/`)
+- `--cycle` (optional): Cycle number. Default is the only `{n}.txt`, or the second-largest cycle when several exist
 
-**Options:** Same as uPBM regressor, except `--data-dir` defaults to `data/selex`
+**Options:** Same as uPBM regressor, except `--data-dir` defaults to `data/selex/transcription_factors`
 
 **Example:**
 ```bash
-python scripts/run_selex.py --protein Gata4 --cycle 4 --regressor DFN --training-set-size 0.9
+python scripts/run_selex.py --protein Gata4 --regressor DFN --training-set-size 0.9
 ```
 
 #### gcPBM Regressor

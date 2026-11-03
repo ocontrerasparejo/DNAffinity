@@ -26,7 +26,7 @@ for k,a,f in [(4,'selex/tetramer/avg_tetramer.dat','selex/tetramer/fce_tetramer.
     else:
         c=A4.loc[[x[1:5] for x in A.index]].values
         out.append('  hexamer avg vs central tetramer avg corr: '+str(np.round([pearsonr(A.values[:,j],c[:,j])[0] for j in range(6)],3)))
-d=pd.read_csv(R+'selex/Gata4/4.txt',sep='\t')
+d=pd.read_csv(R+'selex/transcription_factors/Gata4/4.txt',sep='\t')
 out.append(f'4.txt: {len(d)} rows of {4**10} 10-mers ({len(d)/4**10:.1%}); count==1 {np.mean(d.ObservedCount==1):.1%}; >=10 {np.sum(d.ObservedCount>=10)}')
 r=d.Affinity/(d.ObservedCount/d.ExpectedCount)**0.25; out.append(f'  Aff/(obs/exp)^.25: mean {r.mean():.4f} sd {r.std():.2e}')
 out.append(f'  SE*sqrt(n)/Aff: median {(d.SE*np.sqrt(d.ObservedCount)/d.Affinity).median():.3f}')
@@ -34,7 +34,7 @@ v=dict(zip(d.Kmer,d.Affinity)); n=dict(zip(d.Kmer,d.ObservedCount))
 for th in [1,10,30]:
     pr=[(np.log(v[x]),np.log(v[rc(x)])) for x in v if x<rc(x) and rc(x) in v and n[x]>=th and n[rc(x)]>=th]
     if len(pr)>5: p=np.array(pr); out.append(f'  fwd vs RC log-aff r (both counts>={th}, n={len(p)}): {pearsonr(p[:,0],p[:,1])[0]:.3f}')
-t=pd.read_csv(R+'selex/Gata4/SELEX_test.txt',sep='\t'); out.append(f'SELEX_test: {len(t)} rows, len {t.ID_REF.str.len().unique()}, VALUE range {t.VALUE.min():.3g}-{t.VALUE.max():.3g}, WEIGHT uniq {t.WEIGHT.unique()[:5]}')
+t=pd.read_csv(R+'selex/transcription_factors/Gata4/SELEX_test.txt',sep='\t'); out.append(f'SELEX_test: {len(t)} rows, len {t.ID_REF.str.len().unique()}, VALUE range {t.VALUE.min():.3g}-{t.VALUE.max():.3g}, WEIGHT uniq {t.WEIGHT.unique()[:5]}')
 inn=t.ID_REF.isin(v.keys()); out.append(f'  in 4.txt: {inn.mean():.1%}; VALUE==4.txt Aff for overlap: {np.allclose(t.VALUE[inn],[v[x] for x in t.ID_REF[inn]])}')
 inrc=t.ID_REF.map(rc).isin(v.keys()); out.append(f'  RC in 4.txt: {inrc.mean():.1%}; counts of test kmers: '+str(pd.Series([n.get(x,0) for x in t.ID_REF]).describe().round(1).to_dict()))
 print('\n'.join(out)); open('outputs/selex_new_shape/characterization.txt','w').write('\n'.join(out))

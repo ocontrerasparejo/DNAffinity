@@ -8,7 +8,7 @@ from dnaffinity.models.cnn1d import CNN1DRegressor
 torch.set_num_threads(2)
 model = sys.argv[1]  # rf | cnn
 D = OUT / 'ablation'; D.mkdir(parents=True, exist_ok=True)
-full = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t')
+full = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t')
 LAB = dict(zip(full.Kmer, full.Affinity)); CNT = dict(zip(full.Kmer, full.ObservedCount))
 allg = full.Kmer.map(canonical).values; tg = set(allg[split(allg)])
 BASE = dict(tf='log', mc=10, mode='perstrand', ks='4', props='avg+fce', onehot=0, shape=1, std=1)

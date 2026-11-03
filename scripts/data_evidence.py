@@ -118,7 +118,7 @@ ax.set_title('uPBM Gata4: every model is at the noise ceiling'); ax.legend(loc='
 save(fig, 'upbm_4_noise_ceiling_vs_models.png')
 
 # ======================= SELEX =======================
-se = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t')
+se = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t')
 top = se[se.ObservedCount >= 10].sort_values('Affinity', ascending=False)
 gata = lambda s: any(m in s for m in ['AGATAA', 'TGATAA', 'AGATAG', 'TGATAG', 'TTATCT', 'TTATCA', 'CTATCT', 'CTATCA'])
 gata4 = lambda s: 'GATA' in s or 'TATC' in s
@@ -199,7 +199,7 @@ ax.set_title('SELEX "Gata4" cycle 4: top 20 k-mers by affinity (count ≥ 10)')
 save(fig, 'selex_1_top_kmers_table.png')
 
 # (4) SELEX_test.txt vs uPBM
-st = pd.read_csv(ROOT / 'data/selex/Gata4/SELEX_test.txt', sep='\t')
+st = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/SELEX_test.txt', sep='\t')
 ov = set(st.ID_REF) & set(up.ID_REF)
 m = st.groupby('ID_REF').VALUE.mean().to_frame('selex_test').join(up.groupby('ID_REF').VALUE.mean().to_frame('upbm'), how='inner')
 ks = ks_2samp(st.VALUE, up.VALUE)

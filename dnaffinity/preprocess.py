@@ -7,6 +7,8 @@ duplicates are collapsed into one row per canonical sequence (mean label), so
 a train/test split on rows can never put the same molecule on both sides.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -38,6 +40,22 @@ def load_upbm(path, aggregate=True):
     if aggregate:
         df = aggregate_canonical(df, weight='WEIGHT')
     return df.reset_index(drop=True)
+
+
+def selex_cycle_file(protein_dir, cycle=None):
+    """Path to the cycle table for one transcription factor.
+
+    ``cycle`` selects ``{cycle}.txt`` explicitly. Otherwise the only numbered
+    file is used, or the second-largest cycle (n-1) when several exist.
+    """
+    protein_dir = Path(protein_dir)
+    if cycle is not None:
+        return protein_dir / f'{cycle}.txt'
+    cycles = sorted(int(p.stem) for p in protein_dir.glob('[0-9]*.txt') if p.stem.isdigit())
+    if not cycles:
+        raise FileNotFoundError(f'No cycle files ({{n}}.txt) in {protein_dir}')
+    chosen = cycles[-1] if len(cycles) == 1 else cycles[-2]
+    return protein_dir / f'{chosen}.txt'
 
 
 def load_selex(path, selection='count', min_count=10, seed=20):

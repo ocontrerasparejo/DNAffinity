@@ -1,4 +1,4 @@
-"""SELEX Gata4 + new SELEX shape tables (data/selex/{tetramer,hexamer}). Labels from 4.txt."""
+"""SELEX labels (data/selex/transcription_factors/Gata4/4.txt) plus shape tables (data/selex/{tetramer,hexamer})."""
 import json, os, sys, numpy as np, pandas as pd
 from pathlib import Path
 from scipy.stats import pearsonr, spearmanr
@@ -64,7 +64,7 @@ def flat_feats(seqs, ks=(4,), props=('avg', 'fce'), onehot=False, shape=True):
 def load_labels(min_count=10, mode='perstrand'):
     """perstrand: each orientation its own row with its own label (RC row present only if measured).
     merged: one label per canonical k-mer (mean affinity of the measured strands), both orientations emitted (RC augmentation)."""
-    d = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t')
+    d = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t')
     d = d[d.ObservedCount >= min_count][['Kmer', 'Affinity', 'ObservedCount']].rename(columns={'Kmer': 'seq', 'Affinity': 'aff', 'ObservedCount': 'n'})
     d['group'] = d.seq.map(canonical)
     if mode == 'merged':

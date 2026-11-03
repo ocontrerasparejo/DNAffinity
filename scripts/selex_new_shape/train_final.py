@@ -13,7 +13,7 @@ WIN = ('cnn1d', 'cnnattention', 'transformer'); SK = ('rf', 'ridge', 'linear', '
 torch.set_num_threads(int(os.environ.get("NT", 3)))
 model = sys.argv[1]; c = json.loads(sys.argv[2])
 FD = OUT / (os.environ['OUTDIR'] if 'OUTDIR' in os.environ else ('final' if c['ks'] == '4' else f"final_ks{c['ks']}")); D = FD / model; D.mkdir(parents=True, exist_ok=True); json.dump(c, open(FD / 'config.json', 'w'))
-full = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values; tg = set(allg[split(allg)])
+full = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values; tg = set(allg[split(allg)])
 d = load_labels(c['mc'], c['mode']); te = d.group.isin(tg).values
 ks = tuple(int(x) for x in c['ks']); props = tuple(c['props'].split('+'))
 t0 = time.perf_counter(); X = (flat_feats if model not in WIN else windowed)(list(d.seq), ks, props, bool(c['onehot']), bool(c['shape']))

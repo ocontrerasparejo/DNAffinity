@@ -2,9 +2,10 @@
 """HT-SELEX regressor for affinity prediction.
 
 Requires '{data_dir}/{protein}/{cycle}.txt' (preprocessed with the R pipeline
-under notebooks/preprocess_selex/). Keeps k-mers with ObservedCount >= --min-count
-(collapsing reverse complements), writes the training file to
-outputs/selex/{protein}/{regressor}/, then trains.
+under notebooks/preprocess_selex/). --cycle defaults to the only numbered file,
+or the second-largest cycle when several exist. Keeps k-mers with
+ObservedCount >= --min-count (collapsing reverse complements), writes the
+training file to outputs/selex/{protein}/{regressor}/, then trains.
 """
 
 import sys
@@ -16,16 +17,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from dnaffinity.common import (OUTPUTS_DIR, ROOT, SELEX_DFN_PARAMS, build_parser,
                                default_params, load_pytorch_params, save_model, train_model)
 from dnaffinity.plotting import save_plots
-from dnaffinity.preprocess import load_selex
+from dnaffinity.preprocess import load_selex, selex_cycle_file
 
 parser = build_parser('SELEX regressor for affinity prediction',
-                      default_data_dir=ROOT / 'data' / 'selex',
-                      extra_args=[('--cycle', dict(type=str, required=True, help='Cycle number')),
+                      default_data_dir=ROOT / 'data' / 'selex' / 'transcription_factors',
+                      extra_args=[('--cycle', dict(type=str, default=None,
+                                                   help='Cycle number (default: only file, or n-1)')),
                                   ('--min-count', dict(type=int, default=10,
                                                        help='Minimum ObservedCount per k-mer (default 10)'))])
 args = parser.parse_args()
 
-data_file = f'{args.data_dir}/{args.protein}/{args.cycle}.txt'
+data_file = selex_cycle_file(Path(args.data_dir) / args.protein, args.cycle)
+print(f'Using {data_file}')
 # fixed: keep k-mers with ObservedCount >= --min-count (reliable affinities), RC-collapsed.
 # legacy: top 10% by background Probability (anti-correlated with affinity, see data audit)
 df_train = load_selex(data_file, selection='legacy' if args.legacy_preprocessing else 'count',

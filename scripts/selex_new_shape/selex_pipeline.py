@@ -47,7 +47,7 @@ def sk_factory(model, seed, n_jobs=None):
 
 def labels_and_test(cfg):
     """Labelled rows (count >= mc, per strand) and boolean test mask: 10% of the reverse-complement groups of ALL k-mers of 4.txt (seed 20)."""
-    full = pd.read_csv(ROOT / 'data/selex/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values
+    full = pd.read_csv(ROOT / 'data/selex/transcription_factors/Gata4/4.txt', sep='\t'); allg = full.Kmer.map(canonical).values
     test_groups = set(allg[split(allg)])
     d = load_labels(cfg['mc'], cfg['mode']); return d, d.group.isin(test_groups).values
 

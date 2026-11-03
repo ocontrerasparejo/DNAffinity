@@ -8,7 +8,8 @@ import pytest
 
 from dnaffinity.dataset import Dataset
 from dnaffinity.model import FeatureScaler, Model, TargetScaler, cross_validate, group_split
-from dnaffinity.preprocess import aggregate_canonical, canonical, load_gcpbm, load_selex, revcomp
+from dnaffinity.preprocess import (aggregate_canonical, canonical, load_gcpbm, load_selex,
+                                   revcomp, selex_cycle_file)
 
 ROOT = Path(__file__).resolve().parents[1]
 GATA4 = ROOT / 'data' / 'upbm' / 'Gata4' / 'Gata4_training.txt'
@@ -19,6 +20,20 @@ def _toy_df(n=120, L=10, seed=0):
     seqs = [''.join(rng.choice(list('ACGT'), L)) for _ in range(n)]
     y = np.array([s.count('GATA') + 0.1 * rng.standard_normal() for s in seqs])
     return pd.DataFrame({'ID_REF': seqs, 'VALUE': y})
+
+
+def test_selex_cycle_file(tmp_path):
+    for n in (1, 2, 3, 4, 5, 6):
+        (tmp_path / f'{n}.txt').write_text('x')
+    (tmp_path / '._6.txt').write_text('junk')
+    assert selex_cycle_file(tmp_path).name == '5.txt'
+    assert selex_cycle_file(tmp_path, cycle=3).name == '3.txt'
+    single = tmp_path / 'only'
+    single.mkdir()
+    (single / '6.txt').write_text('x')
+    assert selex_cycle_file(single).name == '6.txt'
+    assert selex_cycle_file(ROOT / 'data/selex/transcription_factors/Gata4').name == '4.txt'
+    assert selex_cycle_file(ROOT / 'data/selex/transcription_factors/arid3').name == '6.txt'
 
 
 def test_revcomp_and_canonical():
